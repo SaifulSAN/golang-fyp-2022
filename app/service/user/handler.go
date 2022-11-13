@@ -190,10 +190,16 @@ func RegisterUserOrganization(db *sql.DB) http.Handler {
 
 		defer tx.Rollback()
 
+		HashedPw, err := HashPassword(p.UserPassword)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		UserTableQuery := `INSERT INTO app_user(user_name, user_phone, user_email, user_password, user_role, activated) VALUES ($1, $2, $3, $4, 2, false) RETURNING user_id`
 		//remember to hash the password later!!!!
 		//or better make a separate function to hash then call it in handler
-		row := tx.QueryRowContext(context.Background(), UserTableQuery, &p.UserName, &p.UserPhone, &p.UserEmail, &p.UserPassword)
+		row := tx.QueryRowContext(context.Background(), UserTableQuery, &p.UserName, &p.UserPhone, &p.UserEmail, HashedPw)
 
 		if err := row.Err(); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
