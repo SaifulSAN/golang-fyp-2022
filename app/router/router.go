@@ -17,6 +17,10 @@ func NewServer(db *sql.DB) *chi.Mux {
 		r.Method("POST", "/organization", user.RegisterUserOrganization(db))
 	})
 
+	r.Route("/login", func(r chi.Router) {
+		r.Method("POST", "/", user.LoginUser(db))
+	})
+
 	r.Route("/users", func(r chi.Router) {
 
 		// /users GET, POST (get all user list, insert new user)

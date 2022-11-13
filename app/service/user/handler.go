@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -140,7 +141,7 @@ func RegisterUserStandard(db *sql.DB) http.Handler {
 		}
 
 		UserTableQuery := `INSERT INTO app_user(user_name, user_phone, user_email, user_password, user_role, activated) VALUES ($1, $2, $3, $4, 1, true) RETURNING user_id`
-		row := tx.QueryRowContext(context.Background(), UserTableQuery, &p.UserName, &p.UserPhone, &p.UserEmail, HashedPw)
+		row := tx.QueryRowContext(context.Background(), UserTableQuery, p.UserName, p.UserPhone, p.UserEmail, HashedPw)
 
 		if err := row.Err(); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -157,7 +158,7 @@ func RegisterUserStandard(db *sql.DB) http.Handler {
 		//fmt.Println(rowID)
 
 		HomelessTableQuery := `INSERT INTO homeless(primary_emergency_contact, secondary_emergency_contact, user_id) VALUES ($1, $2, $3)`
-		_, err = tx.ExecContext(context.Background(), HomelessTableQuery, &p.UserPrimaryEmergencyContact, &p.UserSecondaryEmergencyContact, rowID)
+		_, err = tx.ExecContext(context.Background(), HomelessTableQuery, p.UserPrimaryEmergencyContact, p.UserSecondaryEmergencyContact, rowID)
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -250,5 +251,51 @@ func PutStuff(db *sql.DB) http.Handler {
 		}
 
 		w.Write([]byte("Successful update"))
+	})
+}
+
+func LoginUser(db *sql.DB) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var p UserLogin
+
+		err := json.NewDecoder(r.Body).Decode(&p)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		tx, err := db.BeginTx(context.Background(), nil)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		defer tx.Rollback()
+
+		//UserLoginQuery := `SELECT EXISTS (SELECT user_email FROM app_user WHERE user_email = $1), user_password FROM app_user WHERE user_email = $1;`
+		UserLoginQuery := `SELECT user_password FROM app_user WHERE user_email = $1`
+		row := tx.QueryRowContext(context.Background(), UserLoginQuery, &p.UserEmail)
+
+		if err := row.Err(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		var userStoredPassword string
+
+		if err := row.Scan(&userStoredPassword); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err = tx.Commit(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		s := strconv.FormatBool(CheckHashPassword(p.UserPassword, userStoredPassword))
+		w.Write([]byte(s))
+
+		//if true, send them jwt and refresh token
 	})
 }
