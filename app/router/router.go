@@ -3,6 +3,7 @@ package router
 import (
 	"database/sql"
 
+	"decision-support-system-go/app/middleware"
 	"decision-support-system-go/app/service/user"
 
 	"github.com/go-chi/chi/v5"
@@ -28,6 +29,7 @@ func NewServer(db *sql.DB) *chi.Mux {
 		// /users/{id}/password GET, PUT (get password for comparison, update password)
 
 		//r.Use(middlewaretest.ExampleMiddleware)
+		r.Use(middleware.ValidateJWT)
 		r.Method("GET", "/", user.RetrieveStuff(db))
 		r.Method("POST", "/", user.PostStuff(db))
 		r.Method("GET", "/{id}", user.RetrieveStuffSingular(db))

@@ -30,5 +30,6 @@ func CreateJWT() (string, error) {
 		return "", err
 	}
 
+	fmt.Println(tokenStr)
 	return tokenStr, nil
 }
