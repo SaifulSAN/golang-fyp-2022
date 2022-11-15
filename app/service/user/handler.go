@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
+
+	"decision-support-system-go/app/service/token"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -293,9 +294,20 @@ func LoginUser(db *sql.DB) http.Handler {
 			return
 		}
 
-		s := strconv.FormatBool(CheckHashPassword(p.UserPassword, userStoredPassword))
-		w.Write([]byte(s))
+		// s := strconv.FormatBool(CheckHashPassword(p.UserPassword, userStoredPassword))
+		// w.Write([]byte(s))
 
-		//if true, send them jwt and refresh token
+		valid := CheckHashPassword(p.UserPassword, userStoredPassword)
+		if valid {
+			token, _ := token.CreateJWT()
+			expirationTime := time.Now().Add(15 * time.Minute)
+
+			http.SetCookie(w, &http.Cookie{
+				Name:     "Token",
+				Value:    token,
+				Expires:  expirationTime,
+				HttpOnly: true,
+			})
+		}
 	})
 }
